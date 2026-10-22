@@ -37,6 +37,18 @@ android {
     }
 }
 
+// The AndroidX libraries drag in both kotlin-stdlib 1.8.22 and the old
+// kotlin-stdlib-jdk7/jdk8 1.6.21 shims, whose classes now live in the main
+// stdlib — so the two collide and checkDuplicateClasses fails. From Kotlin 1.8
+// the jdk7/jdk8 artifacts are empty and just point at kotlin-stdlib, so lifting
+// them to the same version removes the duplicates.
+configurations.all {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    }
+}
+
 dependencies {
     implementation "androidx.appcompat:appcompat:1.7.0"
     implementation "androidx.webkit:webkit:1.11.0"
