@@ -68,15 +68,17 @@ jobs:
         run: |
           mkdir -p dist
           cp android/app/build/outputs/apk/debug/app-debug.apk dist/plate.apk
-          if git diff --quiet -- dist/plate.apk; then
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage first: an untracked file shows up in neither `git diff` nor
+          # `git status --short` in a way `--quiet` can test, so compare the index.
+          git add -f dist/plate.apk
+          if git diff --cached --quiet -- dist/plate.apk; then
             echo "APK unchanged, nothing to commit"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/plate.apk
           git commit -m "Build APK from ${GITHUB_SHA::8} [skip ci]"
-          git push
+          git push origin HEAD:main
 
       # Tagging a release also builds a signed APK, if the signing secrets exist.
       # Without them this step is skipped and the debug APK above is still produced.
