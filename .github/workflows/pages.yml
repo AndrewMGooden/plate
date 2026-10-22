@@ -43,6 +43,10 @@ jobs:
           grep "const VERSION" web/sw.js
 
       - uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on for the repo the first time this runs, so there is no
+          # manual step in Settings.
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
