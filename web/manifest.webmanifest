@@ -1,0 +1,22 @@
+{
+  "name": "Plate — calorie and macro tracker",
+  "short_name": "Plate",
+  "description": "Track what you eat, scan barcodes, and get told whether to eat more or less. Works offline.",
+  "id": "/plate/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F4F2",
+  "theme_color": "#0E6A5B",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Add food", "url": "./#add" },
+    { "name": "Build a plan", "url": "./#plan" }
+  ]
+}

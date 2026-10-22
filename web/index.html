@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plate</title>
+<meta name="description" content="A calorie and macro tracker with a barcode scanner. Works offline.">
+<meta name="theme-color" content="#0E6A5B" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C1412" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Plate">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Epilogue:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hbar">
+      <div class="brand">Plate<span>.</span></div>
+      <div class="daynav">
+        <button id="prevDay" aria-label="Previous day">&lsaquo;</button>
+        <div class="dlabel num" id="dayLabel">Today</div>
+        <button id="nextDay" aria-label="Next day">&rsaquo;</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="today" aria-selected="true">Today</button>
+      <button role="tab" data-tab="add" aria-selected="false">Add food</button>
+      <button role="tab" data-tab="plan" aria-selected="false">Plan</button>
+      <button role="tab" data-tab="you" aria-selected="false">You</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= TODAY ================= -->
+  <section id="tab-today">
+    <div class="rows">
+      <div class="installbar" id="installBar" hidden>
+        <span>Add Plate to your home screen and it opens like an app.</span>
+        <button class="btn sm" id="installGo">Install</button>
+        <button class="btn ghost sm" id="installNo" aria-label="Dismiss">&times;</button>
+      </div>
+
+      <div class="card">
+        <div class="gauge">
+          <div class="ringbox">
+            <svg viewBox="0 0 132 132" aria-hidden="true">
+              <circle cx="66" cy="66" r="56" fill="none" stroke="var(--surface-2)" stroke-width="13"></circle>
+              <circle id="ringArc" cx="66" cy="66" r="56" fill="none" stroke="var(--accent)" stroke-width="13"
+                      stroke-linecap="round" stroke-dasharray="351.9" stroke-dashoffset="351.9"></circle>
+            </svg>
+            <div class="ringtext">
+              <div class="big" id="ringBig">&mdash;</div>
+              <div class="cap" id="ringCap">to go</div>
+            </div>
+          </div>
+          <dl class="side">
+            <div class="kv"><dt>Target</dt><dd id="kTarget">&mdash;</dd></div>
+            <div class="kv"><dt>Eaten</dt><dd id="kEaten">&mdash;</dd></div>
+            <div class="kv"><dt>Burned (base)</dt><dd id="kTdee">&mdash;</dd></div>
+            <div class="kv"><dt>7-day average</dt><dd id="kAvg">&mdash;</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div id="verdict" class="verdict v-flat">
+        <div class="vh">Set up your profile</div>
+        <div class="vb">Open the You tab and enter your height, weight and goal. Everything else follows from that.</div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:12px">Macros</h2>
+        <div class="macros" id="macroBars"></div>
+      </div>
+
+      <div class="card flush" id="mealList"></div>
+
+      <button class="btn wide" data-goto="add">Add food</button>
+    </div>
+  </section>
+
+  <!-- ================= ADD ================= -->
+  <section id="tab-add" hidden>
+    <div class="rows">
+      <div class="card">
+        <div class="fld" id="mealSegLabel">Add to</div>
+        <div class="seg" id="mealSeg" style="margin-top:6px" role="group" aria-labelledby="mealSegLabel">
+          <button data-meal="breakfast" aria-pressed="false">Breakfast</button>
+          <button data-meal="lunch" aria-pressed="false">Lunch</button>
+          <button data-meal="dinner" aria-pressed="false">Dinner</button>
+          <button data-meal="snack" aria-pressed="false">Snack</button>
+        </div>
+      </div>
+
+      <!-- scanner -->
+      <div class="card">
+        <h2>Scan a barcode</h2>
+        <p class="hint" style="margin:5px 0 10px">Point the camera at the barcode on the pack. Products come from Open Food Facts, a free database of about three million items.</p>
+        <div id="scanOffline"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="scanStart">Start camera</button>
+          <button class="btn ghost" id="scanStop" hidden>Stop</button>
+        </div>
+        <div id="scanStage" style="margin-top:12px"></div>
+        <div style="margin-top:12px">
+          <label class="fld">Or type the barcode number
+            <div style="display:flex;gap:8px;margin-top:5px">
+              <input type="text" id="codeIn" inputmode="numeric" placeholder="4005808861217" autocomplete="off">
+              <button class="btn sm" id="codeGo" style="flex:0 0 auto">Look up</button>
+            </div>
+          </label>
+        </div>
+        <div id="scanOut" style="margin-top:12px"></div>
+      </div>
+
+      <!-- search -->
+      <div class="card">
+        <h2>Search for a food</h2>
+        <p class="hint" style="margin:5px 0 10px">The built-in list works with no connection. Branded products are searched online when you have one.</p>
+        <input type="text" id="foodSearch" placeholder="Search &mdash; rice and peas, chicken breast, oats&hellip;" autocomplete="off">
+        <div id="searchResults" style="margin-top:10px"></div>
+        <div id="portionBox" style="margin-top:12px"></div>
+      </div>
+
+      <!-- manual -->
+      <div class="card">
+        <h2>Enter it by hand</h2>
+        <p class="hint" style="margin:5px 0 10px">Copy the numbers off the pack. Saved foods show up in search next time.</p>
+        <div class="rows">
+          <label class="fld">Name<input type="text" id="mName" placeholder="Grace coconut milk"></label>
+          <div class="grid2">
+            <label class="fld">Serving<input type="text" id="mServ" placeholder="100 ml"></label>
+            <label class="fld">Calories<input type="number" id="mKcal" inputmode="numeric" placeholder="197"></label>
+          </div>
+          <div class="grid3">
+            <label class="fld">Protein g<input type="number" id="mP" inputmode="decimal" placeholder="2"></label>
+            <label class="fld">Carbs g<input type="number" id="mC" inputmode="decimal" placeholder="2.8"></label>
+            <label class="fld">Fat g<input type="number" id="mF" inputmode="decimal" placeholder="21"></label>
+          </div>
+          <label class="fld" style="flex-direction:row;align-items:center;gap:8px;font-weight:500">
+            <input type="checkbox" id="mSave" checked style="width:auto"> Save to my foods
+          </label>
+          <button class="btn" id="mAdd">Add to diary</button>
+          <div id="mErr" class="err" hidden></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLAN ================= -->
+  <section id="tab-plan" hidden>
+    <div class="rows">
+      <div class="card">
+        <h2>Build a meal plan</h2>
+        <p class="hint" style="margin:5px 0 12px">Days built from the food list and scaled to land on your calorie and protein targets. No connection needed.</p>
+        <div class="rows">
+          <div class="grid2">
+            <label class="fld">Days
+              <select id="planDays"><option value="1">1 day</option><option value="3" selected>3 days</option><option value="7">7 days</option></select>
+            </label>
+            <label class="fld">Style
+              <select id="planStyle">
+                <option value="jamaican" selected>Jamaican home cooking</option>
+                <option value="mixed">Mixed</option>
+                <option value="light">Light and quick</option>
+              </select>
+            </label>
+          </div>
+          <label class="fld" style="flex-direction:row;align-items:center;gap:8px;font-weight:500">
+            <input type="checkbox" id="planVeg" style="width:auto"> No meat or fish
+          </label>
+          <button class="btn" id="planGo">Build the plan</button>
+        </div>
+        <div id="planOut" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= YOU ================= -->
+  <section id="tab-you" hidden>
+    <div class="rows">
+      <div class="card">
+        <h2>Your numbers</h2>
+        <div class="grid3" id="statRow" style="margin-top:12px"></div>
+        <div id="targetNote" class="hint" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:12px">Profile</h2>
+        <div class="rows">
+          <div class="grid2">
+            <label class="fld">Sex
+              <select id="pSex"><option value="f">Female</option><option value="m">Male</option></select>
+            </label>
+            <label class="fld">Age<input type="number" id="pAge" inputmode="numeric" min="14" max="100"></label>
+          </div>
+          <div class="seg" id="unitSeg" role="group" aria-label="Units">
+            <button data-unit="metric" aria-pressed="true">kg / cm</button>
+            <button data-unit="imperial" aria-pressed="false">lb / ft-in</button>
+          </div>
+          <div id="metricFields" class="grid2">
+            <label class="fld">Height cm<input type="number" id="pHt" inputmode="decimal"></label>
+            <label class="fld">Weight kg<input type="number" id="pWt" inputmode="decimal" step="0.1"></label>
+          </div>
+          <div id="imperialFields" class="grid3" hidden>
+            <label class="fld">Feet<input type="number" id="pFt" inputmode="numeric"></label>
+            <label class="fld">Inches<input type="number" id="pIn" inputmode="numeric"></label>
+            <label class="fld">Weight lb<input type="number" id="pLb" inputmode="decimal" step="0.1"></label>
+          </div>
+          <label class="fld">Daily activity
+            <select id="pAct">
+              <option value="1.2">Desk job, little exercise</option>
+              <option value="1.375">Light &mdash; 1&ndash;3 sessions a week</option>
+              <option value="1.55" selected>Moderate &mdash; 3&ndash;5 sessions a week</option>
+              <option value="1.725">Hard &mdash; 6&ndash;7 sessions a week</option>
+              <option value="1.9">On your feet all day / athlete</option>
+            </select>
+          </label>
+          <label class="fld">Goal
+            <select id="pGoal">
+              <option value="lose">Lose weight</option>
+              <option value="maintain" selected>Stay where I am</option>
+              <option value="gain">Gain weight</option>
+            </select>
+          </label>
+          <label class="fld" id="paceWrap">Pace
+            <select id="pPace"></select>
+          </label>
+          <label class="fld" id="goalWtWrap">Goal weight <span id="goalWtUnit">kg</span>
+            <input type="number" id="pGoalWt" inputmode="decimal" step="0.1">
+          </label>
+          <div id="profileWarn"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Weight log</h2>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
+          <label class="fld" style="flex:1;min-width:110px">New reading <span id="wUnit">kg</span>
+            <input type="number" id="wVal" inputmode="decimal" step="0.1">
+          </label>
+          <button class="btn sm" id="wAdd" style="height:38px">Log it</button>
+        </div>
+        <div id="weightChart" style="margin-top:14px"></div>
+        <div id="trendNote" class="hint" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <h2>This week</h2>
+        <div id="weekReview" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Saved foods</h2>
+        <div id="myFoods" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom:10px">Your data</h2>
+        <p class="hint">Everything stays in this browser. Nothing is uploaded, and there is no account. Clearing site data wipes it, so export a backup now and then.</p>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn ghost sm" id="expBtn">Export backup</button>
+          <button class="btn ghost sm" id="impBtn">Restore backup</button>
+          <input type="file" id="impFile" accept="application/json,.json" hidden>
+        </div>
+        <div id="dataMsg" class="hint" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <p class="notice" style="border-top:0;padding-top:0">
+          Plate estimates. Calorie needs vary by maybe 10% between people of the same size, and food estimates vary more than that &mdash; use the trend over two or three weeks, not any single day.
+          It isn't medical advice. If you're pregnant or breastfeeding, under 18, managing diabetes, kidney or heart disease, an eating disorder, or taking medication that affects appetite or weight, set your targets with a doctor or dietitian rather than with this.
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="foods.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

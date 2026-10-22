@@ -1,0 +1,58 @@
+name: Deploy web app to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Browsers without the built-in BarcodeDetector (Safari, Firefox) fall back
+      # to ZXing. It's fetched here rather than committed, and the app degrades to
+      # typed barcode entry if this step fails.
+      - name: Add the barcode fallback library
+        continue-on-error: true
+        run: |
+          mkdir -p web/vendor
+          npm pack @zxing/library@0.21.3 @zxing/browser@0.1.5
+          for f in *.tgz; do tar xzf "$f"; mv package "${f%.tgz}"; done
+          lib=$(find zxing-library-0.21.3 -name "*.min.js" -path "*umd*" | head -1)
+          brw=$(find zxing-browser-0.1.5  -name "*.min.js" -path "*umd*" | head -1)
+          test -n "$lib" && test -n "$brw"
+          cp "$lib" web/vendor/zxing-library.js
+          cp "$brw" web/vendor/zxing-browser.js
+          ls -la web/vendor
+
+      - name: Stamp the service worker so clients pick up this build
+        run: |
+          sed -i "s/const VERSION = \"plate-v1\";/const VERSION = \"plate-${GITHUB_SHA::8}\";/" web/sw.js
+          grep "const VERSION" web/sw.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

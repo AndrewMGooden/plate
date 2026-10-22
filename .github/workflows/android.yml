@@ -1,0 +1,85 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_B64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The app is the web/ folder in a WebView, so it ships as the app's assets.
+      - name: Copy the web app into the Android assets
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp -r web/. android/app/src/main/assets/
+          # The service worker is pointless inside the app and the icons are
+          # already in res/, so drop them from the APK.
+          rm -f android/app/src/main/assets/sw.js
+          ls android/app/src/main/assets
+
+      - name: Add the barcode fallback library
+        continue-on-error: true
+        run: |
+          mkdir -p android/app/src/main/assets/vendor
+          npm pack @zxing/library@0.21.3 @zxing/browser@0.1.5
+          for f in *.tgz; do tar xzf "$f"; mv package "${f%.tgz}"; done
+          lib=$(find zxing-library-0.21.3 -name "*.min.js" -path "*umd*" | head -1)
+          brw=$(find zxing-browser-0.1.5  -name "*.min.js" -path "*umd*" | head -1)
+          test -n "$lib" && test -n "$brw"
+          cp "$lib" android/app/src/main/assets/vendor/zxing-library.js
+          cp "$brw" android/app/src/main/assets/vendor/zxing-browser.js
+          ls -la android/app/src/main/assets/vendor
+
+      - name: Build the debug APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plate-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      # Tagging a release also builds a signed APK, if the signing secrets exist.
+      # Without them this step is skipped and the debug APK above is still produced.
+      - name: Build and sign the release APK
+        if: github.event_name == 'release' && env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        working-directory: android
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > release.keystore
+          gradle --no-daemon assembleRelease \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password='${{ secrets.KEYSTORE_PASSWORD }}' \
+            -Pandroid.injected.signing.key.alias='${{ secrets.KEY_ALIAS }}' \
+            -Pandroid.injected.signing.key.password='${{ secrets.KEY_PASSWORD }}'
+
+      - name: Attach the APK to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          fail_on_unmatched_files: false

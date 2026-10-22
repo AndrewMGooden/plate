@@ -1,0 +1,44 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.plate.tracker"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.plate.tracker"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            // Left unminified: the whole app is a WebView host, so there is
+            // nothing for R8 to usefully shrink, and keeping it off removes a
+            // class of release-only breakage.
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // The web/ folder is copied in by the build workflow before assembling.
+    sourceSets {
+        main {
+            assets.srcDirs += ["src/main/assets"]
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.webkit:webkit:1.11.0"
+    implementation "androidx.activity:activity:1.9.2"
+}
