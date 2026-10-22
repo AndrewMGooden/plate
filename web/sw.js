@@ -17,10 +17,18 @@ const SHELL = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(VERSION)
-      .then(c => c.addAll(SHELL))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())
+    caches.open(VERSION).then(c => {
+      // cache.addAll() goes through the browser's HTTP cache, and GitHub Pages
+      // sets a ten-minute max-age — so a fresh deploy would cache the OLD files
+      // and viewers would stay a version behind. Force each one to the network.
+      return Promise.all(SHELL.map(url =>
+        fetch(new Request(url, {cache: "reload"}))
+          .then(res => res && res.ok ? c.put(url, res) : null)
+          .catch(() => null)
+      ));
+    })
+    .then(() => self.skipWaiting())
+    .catch(() => self.skipWaiting())
   );
 });
 
