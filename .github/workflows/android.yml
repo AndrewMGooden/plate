@@ -60,6 +60,24 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
+      # Also commit the APK into dist/ on main, so there's a permanent download
+      # link that works on a phone without digging through the Actions tab.
+      # dist/ isn't in this workflow's paths filter, so this commit can't retrigger it.
+      - name: Publish the APK to dist/
+        if: github.event_name != 'release' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/plate.apk
+          if git diff --quiet -- dist/plate.apk; then
+            echo "APK unchanged, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/plate.apk
+          git commit -m "Build APK from ${GITHUB_SHA::8} [skip ci]"
+          git push
+
       # Tagging a release also builds a signed APK, if the signing secrets exist.
       # Without them this step is skipped and the debug APK above is still produced.
       - name: Build and sign the release APK
