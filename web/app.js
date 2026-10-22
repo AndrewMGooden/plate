@@ -1186,7 +1186,130 @@ function readProfileForm(){
   renderToday();
 }
 
+/* ============================ install prompt ============================
+   Chrome hands us a real install event. Safari never does, so on iPhone the
+   only honest thing is to show the two taps that actually do it. */
 let deferredInstall = null;
+const DISMISS_KEY = "plate_install_dismissed";
+const DISMISS_DAYS = 14;
+
+function isInstalled(){
+  try{
+    return window.matchMedia("(display-mode: standalone)").matches ||
+           window.matchMedia("(display-mode: fullscreen)").matches ||
+           window.matchMedia("(display-mode: minimal-ui)").matches ||
+           navigator.standalone === true;
+  }catch(e){ return false; }
+}
+function isIOS(){
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(ua) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function isIOSSafari(){
+  const ua = navigator.userAgent || "";
+  return isIOS() && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+}
+function dismissedRecently(){
+  try{
+    const t = Number(localStorage.getItem(DISMISS_KEY) || 0);
+    return t > 0 && (Date.now() - t) < DISMISS_DAYS * 864e5;
+  }catch(e){ return false; }
+}
+function rememberDismiss(){
+  try{ localStorage.setItem(DISMISS_KEY, String(Date.now())); }catch(e){}
+}
+
+function iosSteps(){
+  return [
+    'Tap <span class="shareglyph" aria-hidden="true">↑</span> <b>Share</b> at the bottom of Safari',
+    'Scroll down and tap <b>Add to Home Screen</b>',
+    'Tap <b>Add</b> — Plate lands on your home screen'
+  ];
+}
+
+/* The sheet at the bottom, and the permanent row in the You tab. */
+function showSheet(mode){
+  const sheet = $("installSheet"), steps = $("installSteps"), go = $("installGo");
+  if(mode === "prompt"){
+    steps.hidden = true;
+    go.hidden = false;
+    $("installBody").textContent = "Keep it on your home screen — it opens full screen and works without a signal.";
+  } else {
+    steps.innerHTML = iosSteps().map(s => "<li>" + s + "</li>").join("");
+    steps.hidden = false;
+    go.hidden = true;
+    $("installBody").textContent = "Two taps and it lives on your home screen, full screen and offline-ready.";
+  }
+  sheet.hidden = false;
+}
+
+function renderInstallCard(){
+  const card = $("installCard");
+  if(isInstalled()){
+    card.hidden = false;
+    $("installCardBody").textContent = "Plate is installed on this device — you're running the installed copy.";
+    $("installCardGo").hidden = true;
+    return;
+  }
+  if(deferredInstall){
+    card.hidden = false;
+    $("installCardBody").textContent = "Put Plate on your home screen so it opens full screen and works offline.";
+    $("installCardGo").hidden = false;
+    return;
+  }
+  if(isIOSSafari()){
+    card.hidden = false;
+    $("installCardBody").innerHTML = "On iPhone, Safari does the installing: " + iosSteps().join(", then ").replace(/<span[^>]*>.*?<\/span> /, "") + ".";
+    $("installCardGo").hidden = true;
+    return;
+  }
+  card.hidden = true;
+}
+
+async function runInstall(){
+  if(!deferredInstall) return;
+  const e = deferredInstall;
+  deferredInstall = null;
+  $("installSheet").hidden = true;
+  try{
+    e.prompt();
+    const res = await e.userChoice;
+    if(res && res.outcome === "dismissed") rememberDismiss();
+  }catch(err){}
+  renderInstallCard();
+}
+
+function setupInstall(){
+  $("installGo").addEventListener("click", runInstall);
+  $("installCardGo").addEventListener("click", runInstall);
+  $("installNo").addEventListener("click", ()=>{
+    $("installSheet").hidden = true;
+    rememberDismiss();
+  });
+
+  window.addEventListener("beforeinstallprompt", e=>{
+    e.preventDefault();
+    deferredInstall = e;
+    renderInstallCard();
+    if(!isInstalled() && !dismissedRecently()) showSheet("prompt");
+  });
+
+  window.addEventListener("appinstalled", ()=>{
+    deferredInstall = null;
+    $("installSheet").hidden = true;
+    rememberDismiss();
+    renderInstallCard();
+    flash("Plate is installed");
+  });
+
+  /* Safari fires nothing, so after a moment of real use, show the steps. */
+  if(isIOSSafari() && !isInstalled() && !dismissedRecently()){
+    setTimeout(()=>{ if(!isInstalled()) showSheet("ios"); }, 3500);
+  }
+  renderInstallCard();
+}
+
 function wire(){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click", ()=>goTab(b.dataset.tab)));
   document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click", ()=>goTab(b.dataset.goto)));
@@ -1273,19 +1396,7 @@ function wire(){
     e.target.value = "";
   });
 
-  window.addEventListener("beforeinstallprompt", e=>{
-    e.preventDefault();
-    deferredInstall = e;
-    $("installBar").hidden = false;
-  });
-  $("installGo").addEventListener("click", async ()=>{
-    if(!deferredInstall) return;
-    deferredInstall.prompt();
-    try{ await deferredInstall.userChoice; }catch(e){}
-    deferredInstall = null;
-    $("installBar").hidden = true;
-  });
-  $("installNo").addEventListener("click", ()=>{ $("installBar").hidden = true; });
+  setupInstall();
 
   const setOffline = ()=>{
     $("scanOffline").innerHTML = navigator.onLine ? "" :

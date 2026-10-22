@@ -44,12 +44,6 @@
   <!-- ================= TODAY ================= -->
   <section id="tab-today">
     <div class="rows">
-      <div class="installbar" id="installBar" hidden>
-        <span>Add Plate to your home screen and it opens like an app.</span>
-        <button class="btn sm" id="installGo">Install</button>
-        <button class="btn ghost sm" id="installNo" aria-label="Dismiss">&times;</button>
-      </div>
-
       <div class="card">
         <div class="gauge">
           <div class="ringbox">
@@ -264,6 +258,12 @@
         <div id="myFoods" style="margin-top:10px"></div>
       </div>
 
+      <div class="card" id="installCard" hidden>
+        <h2>Install Plate</h2>
+        <p class="hint" style="margin:5px 0 10px" id="installCardBody"></p>
+        <button class="btn" id="installCardGo">Install</button>
+      </div>
+
       <div class="card">
         <h2 style="margin-bottom:10px">Your data</h2>
         <p class="hint">Everything stays in this browser. Nothing is uploaded, and there is no account. Clearing site data wipes it, so export a backup now and then.</p>
@@ -284,6 +284,21 @@
     </div>
   </section>
 </main>
+
+<div class="installsheet" id="installSheet" hidden role="region" aria-labelledby="installTitle">
+  <div class="is-inner">
+    <button class="is-close" id="installNo" aria-label="Not now">&times;</button>
+    <div class="is-head">
+      <img class="is-icon" src="icons/icon-192.png" alt="" width="52" height="52">
+      <div class="is-copy">
+        <div class="is-title" id="installTitle">Install Plate</div>
+        <div class="is-body" id="installBody">Keep it on your home screen — it opens full screen and works without a signal.</div>
+      </div>
+    </div>
+    <ol class="is-steps" id="installSteps" hidden></ol>
+    <button class="btn wide" id="installGo">Install</button>
+  </div>
+</div>
 
 <script src="foods.js"></script>
 <script src="app.js"></script>
